@@ -41,6 +41,7 @@ jobs:
           rustup update stable --no-self-update
           rustup default stable
           rustup target add "$RUST_TARGET"
+          pipx install dmgbuild==1.6.7
       - name: Test CLI and app
         run: |
           cargo test --locked --manifest-path cli/Cargo.toml
@@ -52,11 +53,12 @@ jobs:
           APP_BUILD: ${{ github.run_number }}
         run: |
           app/build-app.sh
-          ditto -c -k --keepParent "app/build/Vinted Manager.app" "app/build/Vinted-Manager-test-$ARCHS.zip"
+          app/make-dmg.sh
+          mv app/build/Vinted-Manager.dmg "app/build/Vinted-Manager-test-$ARCHS.dmg"
       - name: Upload test app (ad-hoc signed)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Vinted-Manager-test-${{ matrix.arch }}
-          path: app/build/Vinted-Manager-test-*.zip
+          path: app/build/Vinted-Manager-test-*.dmg
           if-no-files-found: error
           retention-days: 14

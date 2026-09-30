@@ -59,6 +59,7 @@ jobs:
           rustup update stable --no-self-update
           rustup default stable
           rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          pipx install dmgbuild==1.6.7
       - name: Test CLI and app
         run: |
           cargo test --locked --manifest-path cli/Cargo.toml
@@ -101,17 +102,17 @@ jobs:
           SIGNING_IDENTITY: '-'
         run: |
           app/build-app.sh
-          ditto -c -k --keepParent "app/build/Vinted Manager.app" app/build/Vinted-Manager.zip
+          app/make-dmg.sh
           cat > app/build/release-notes.md <<'NOTES'
           > [!WARNING]
-          > This build is not notarized by Apple, so macOS blocks it on first launch. After unzipping,
-          > move it to Applications and run `xattr -dr com.apple.quarantine "/Applications/Vinted Manager.app"`,
+          > This build is not notarized by Apple, so macOS blocks it on first launch. After dragging it
+          > into Applications, run `xattr -dr com.apple.quarantine "/Applications/Vinted Manager.app"`,
           > or try to open it once and then choose **Open Anyway** in System Settings › Privacy & Security.
           NOTES
       - name: Checksum
         run: |
           cd app/build
-          shasum -a 256 Vinted-Manager.zip > Vinted-Manager.zip.sha256
+          shasum -a 256 Vinted-Manager.dmg > Vinted-Manager.dmg.sha256
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -121,7 +122,7 @@ jobs:
           notes=()
           if [ -f app/build/release-notes.md ]; then notes=(--notes-file app/build/release-notes.md); fi
           gh release create "$RELEASE_TAG" \
-            app/build/Vinted-Manager.zip app/build/Vinted-Manager.zip.sha256 \
+            app/build/Vinted-Manager.dmg app/build/Vinted-Manager.dmg.sha256 \
             --verify-tag --generate-notes "${notes[@]}" --title "Vinted Manager $RELEASE_TAG"
       - name: Clean up signing credentials
         if: always()

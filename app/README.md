@@ -84,7 +84,13 @@ Build for both Apple silicon and Intel Macs:
 ```sh
 rustup target add aarch64-apple-darwin x86_64-apple-darwin
 ARCHS="arm64 x86_64" app/build-app.sh
+app/make-dmg.sh                       # → app/build/Vinted-Manager.dmg
 ```
+
+`make-dmg.sh` wraps the app in a disk image that opens as a "drag to Applications" window
+(layout in `dmg/settings.py`, background drawn in `dmg/background.svg`). It uses
+[dmgbuild](https://github.com/dmgbuild/dmgbuild), installed with `pipx install dmgbuild`
+or run through `uvx` automatically.
 
 For a release that passes Gatekeeper, install a **Developer ID Application** certificate
 and store your notarization credentials with `xcrun notarytool store-credentials`.
@@ -100,12 +106,13 @@ app/package-release.sh
 
 The release script builds a universal app, signs its nested executables and app with
 the hardened runtime and timestamps, submits it to Apple, checks for acceptance,
-staples the ticket, verifies Gatekeeper acceptance, and creates **app/build/Vinted-Manager.zip**.
-It sends only the app to Apple; no libraries, listings, photos or agent credentials are bundled.
+staples the ticket and verifies Gatekeeper acceptance. It then puts the app in
+**app/build/Vinted-Manager.dmg**, which it signs, notarizes and staples as well.
+It sends only the app and the disk image to Apple; no libraries, listings, photos or agent credentials are bundled.
 `ARCHS=arm64` or `ARCHS=x86_64` can be used for an architecture-specific release.
 Ad-hoc builds are for local testing and are not a notarized public release.
 
-Before distributing, test the downloaded ZIP on another Mac with macOS 26+ and no
+Before distributing, test the downloaded disk image on another Mac with macOS 26+ and no
 developer tools or AI CLIs: move it to Applications, create a library, import photos,
 create/edit a listing, change its status, quit and reopen. Also test with an installed
 but logged-out assistant, and then with one logged in. Only the last case should expose AI actions.
@@ -113,18 +120,18 @@ but logged-out assistant, and then with one logged in. Only the last case should
 ## GitHub Actions and Releases
 
 Use **GitHub Releases** for app downloads. GitHub Packages provides registries for
-package ecosystems and container images; Releases can attach the app ZIP and its
+package ecosystems and container images; Releases can attach the disk image and its
 checksum directly. See [GitHub's release documentation](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases).
 
 Two workflows are included:
 
 - **macOS build** (`.github/workflows/macos.yml`) runs on PRs, pushes to `main`, or
   manually from Actions. It tests and builds separately on Apple silicon and Intel
-  macOS 26 runners. Download the ad-hoc signed test ZIPs from the run's Artifacts.
+  macOS 26 runners. Download the ad-hoc signed test disk images from the run's Artifacts.
   These expire after 14 days and are intended for testing.
 - **Release macOS app** (`.github/workflows/release.yml`) runs when you push a tag
   such as `v0.1.0`. It tests, builds a universal app, signs and notarizes it, then
-  publishes a GitHub Release with `Vinted-Manager.zip`, a SHA-256 checksum, and
+  publishes a GitHub Release with `Vinted-Manager.dmg`, a SHA-256 checksum, and
   generated release notes. Failed notarization stops the workflow before it publishes
   anything. Release tags must be `vMAJOR.MINOR.PATCH`.
 

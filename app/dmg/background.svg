@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="660" height="400" viewBox="0 0 660 400">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F8FBFB"/>
+      <stop offset="1" stop-color="#E4F1F1"/>
+    </linearGradient>
+  </defs>
+  <rect width="660" height="400" fill="url(#bg)"/>
+  <g fill="none" stroke="#1FA3A8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M265 190 Q330 160 395 190"/>
+    <path d="M375 172 L397 191 L370 200"/>
+  </g>
+  <text x="330" y="80" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-size="15" fill="#4A6466">Drag Vinted Manager into Applications to install it</text>
+</svg>
