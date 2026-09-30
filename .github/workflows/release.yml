@@ -29,7 +29,8 @@ jobs:
           fi
           echo "APP_VERSION=${RELEASE_TAG#v}" >> "$GITHUB_ENV"
           echo "APP_BUILD=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
-      - name: Validate signing credentials
+      # All Apple secrets set → signed and notarized release. None set → ad-hoc signed release.
+      - name: Choose signed or unsigned release
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
@@ -38,12 +39,19 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
+          missing=()
           for name in BUILD_CERTIFICATE_BASE64 P12_PASSWORD SIGNING_IDENTITY APPLE_ID APPLE_TEAM_ID APPLE_APP_SPECIFIC_PASSWORD; do
-            if [ -z "${!name}" ]; then
-              echo "Missing repository secret: $name (see app/README.md)." >&2
-              exit 1
-            fi
+            if [ -z "${!name}" ]; then missing+=("$name"); fi
           done
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo "SIGNED=true" >> "$GITHUB_ENV"
+          elif [ "${#missing[@]}" -eq 6 ]; then
+            echo "::warning::No Apple signing secrets configured; publishing an ad-hoc signed release that is not notarized."
+            echo "SIGNED=false" >> "$GITHUB_ENV"
+          else
+            echo "Missing repository secrets: ${missing[*]} (see app/README.md)." >&2
+            exit 1
+          fi
       - name: Prepare toolchains
         run: |
           xcodebuild -version
@@ -56,6 +64,7 @@ jobs:
           cargo test --locked --manifest-path cli/Cargo.toml
           swift test --package-path app
       - name: Import signing certificate and notarization credentials
+        if: env.SIGNED == 'true'
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
@@ -80,11 +89,27 @@ jobs:
           echo "NOTARY_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
           rm -f "$certificate"
       - name: Build, sign and notarize universal app
+        if: env.SIGNED == 'true'
         env:
           ARCHS: arm64 x86_64
           SIGNING_IDENTITY: ${{ secrets.SIGNING_IDENTITY }}
+        run: app/package-release.sh
+      - name: Build ad-hoc signed universal app
+        if: env.SIGNED != 'true'
+        env:
+          ARCHS: arm64 x86_64
+          SIGNING_IDENTITY: '-'
         run: |
-          app/package-release.sh
+          app/build-app.sh
+          ditto -c -k --keepParent "app/build/Vinted Manager.app" app/build/Vinted-Manager.zip
+          cat > app/build/release-notes.md <<'NOTES'
+          > [!WARNING]
+          > This build is not notarized by Apple, so macOS blocks it on first launch. After unzipping,
+          > move it to Applications and run `xattr -dr com.apple.quarantine "/Applications/Vinted Manager.app"`,
+          > or try to open it once and then choose **Open Anyway** in System Settings › Privacy & Security.
+          NOTES
+      - name: Checksum
+        run: |
           cd app/build
           shasum -a 256 Vinted-Manager.zip > Vinted-Manager.zip.sha256
       - name: Publish GitHub Release
@@ -93,9 +118,11 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
+          notes=()
+          if [ -f app/build/release-notes.md ]; then notes=(--notes-file app/build/release-notes.md); fi
           gh release create "$RELEASE_TAG" \
             app/build/Vinted-Manager.zip app/build/Vinted-Manager.zip.sha256 \
-            --verify-tag --generate-notes --title "Vinted Manager $RELEASE_TAG"
+            --verify-tag --generate-notes "${notes[@]}" --title "Vinted Manager $RELEASE_TAG"
       - name: Clean up signing credentials
         if: always()
         run: |

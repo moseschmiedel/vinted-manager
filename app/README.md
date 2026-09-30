@@ -125,10 +125,16 @@ Two workflows are included:
 - **Release macOS app** (`.github/workflows/release.yml`) runs when you push a tag
   such as `v0.1.0`. It tests, builds a universal app, signs and notarizes it, then
   publishes a GitHub Release with `Vinted-Manager.zip`, a SHA-256 checksum, and
-  generated release notes. Missing credentials or failed notarization stop the
-  workflow before it publishes anything. Release tags must be `vMAJOR.MINOR.PATCH`.
+  generated release notes. Failed notarization stops the workflow before it publishes
+  anything. Release tags must be `vMAJOR.MINOR.PATCH`.
 
-In **Settings › Secrets and variables › Actions**, configure these repository secrets:
+Without any Apple secrets, the release workflow publishes an **ad-hoc signed** build instead,
+with a note in the release explaining how to get past Gatekeeper (`xattr -dr com.apple.quarantine`
+or **Open Anyway** in System Settings › Privacy & Security). Setting only some of the secrets
+fails the workflow, so a typo can't silently downgrade a release.
+
+For notarized releases, configure these repository secrets in
+**Settings › Secrets and variables › Actions**:
 
 | Secret | Value |
 |---|---|
