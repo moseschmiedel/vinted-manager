@@ -38,6 +38,10 @@ for name in VintedManager vinted VintedPhotoConverter; do
     chmod 755 "$output"
 done
 cp Info.plist "$bundle/Contents/Info.plist"
+# Compile the Icon Composer icon: Assets.car for macOS 26 (Liquid Glass), AppIcon.icns as fallback.
+xcrun actool "$(pwd)/Resources/AppIcon.icon" --compile "$bundle/Contents/Resources" --platform macosx \
+    --minimum-deployment-target 26.0 --app-icon AppIcon \
+    --output-partial-info-plist "$stage/icon.plist" --errors --warnings >/dev/null
 if [ -n "${APP_VERSION:-}" ]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$bundle/Contents/Info.plist"
 fi

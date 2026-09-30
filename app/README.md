@@ -177,7 +177,8 @@ use a public repository if you want public downloads.
 |---|---|
 | `Sources/VintedCore/` | UI-free logic: parsing `listing.md`, loading items and the inbox, importing photos, running `./vinted` |
 | `Sources/VintedManager/` | SwiftUI app: store, file watcher, thumbnails, views |
-| `Tests/VintedCoreTests/` | Parser tests plus write tests on a temporary copy of the repository |
+| `Tests/VintedCoreTests/` | Parser tests plus write tests on a temporary repository with sample items |
+| `Resources/AppIcon.icon` | App icon (Icon Composer format, SVG layers); `build-app.sh` compiles it with `actool` |
 
 Reading is done in Swift. **All writes to items go through `./vinted`** (e.g. `vinted status`),
 so dates, formatting and `INVENTORY.md` stay exactly as the CLI and agents produce them.
