@@ -1,0 +1,13 @@
+.cache/
+.DS_Store
+originals/
+app/.build/
+app/build/
+cli/target/
+
+# Selling data stays private: this repository only holds the code.
+items/*
+!items/.gitkeep
+inbox/*
+!inbox/.gitkeep
+INVENTORY.md

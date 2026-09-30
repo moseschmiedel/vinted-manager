@@ -1,0 +1,11 @@
+#!/bin/sh
+# Runs the Rust CLI in cli/ against this repository (rebuilds it first if the sources changed).
+root="$(cd "$(dirname "$0")" && pwd)"
+export VINTED_REPO="$root"
+export PATH="$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+bin="$root/cli/target/release/vinted"
+# Skip cargo's own freshness check (~150 ms) when the binary is newer than every source file.
+if [ -x "$bin" ] && [ -z "$(find "$root/cli/src" "$root/cli/Cargo.toml" "$root/cli/Cargo.lock" "$root/AGENTS.md" "$root/templates/listing.md" "$root/.agents/skills/process-inbox/SKILL.md" -newer "$bin" 2>/dev/null | head -1)" ]; then
+    exec "$bin" "$@"
+fi
+exec cargo run --quiet --release --manifest-path "$root/cli/Cargo.toml" -- "$@"
