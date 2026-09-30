@@ -108,15 +108,13 @@ public struct VintedCLI: Sendable {
         return try await withCheckedThrowingContinuation { continuation in
             // Drain both pipes while running: long descriptions and build output can
             // fill a pipe and prevent the child from ever reaching its termination handler.
-            let outputReader = Task.detached { stdout.fileHandleForReading.readDataToEndOfFile() }
-            let errorReader = Task.detached { stderr.fileHandleForReading.readDataToEndOfFile() }
+            let outputReader = PipeReader(stdout)
+            let errorReader = PipeReader(stderr)
             process.terminationHandler = { process in
                 let status = process.terminationStatus
                 Task {
-                    let output = String(decoding: await outputReader.value, as: UTF8.self)
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                    let errorText = String(decoding: await errorReader.value, as: UTF8.self)
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    let output = await outputReader.text().trimmingCharacters(in: .whitespacesAndNewlines)
+                    let errorText = await errorReader.text().trimmingCharacters(in: .whitespacesAndNewlines)
                     if status == 0 {
                         continuation.resume(returning: output)
                     } else {
@@ -131,6 +129,29 @@ public struct VintedCLI: Sendable {
                 try? stdout.fileHandleForWriting.close()
                 try? stderr.fileHandleForWriting.close()
                 continuation.resume(throwing: error)
+            }
+        }
+    }
+}
+
+/// Reads a pipe to the end on a GCD thread. `readDataToEndOfFile` blocks, and blocking Swift's
+/// cooperative pool instead (e.g. in `Task.detached`) starves every other task once a few CLI
+/// calls run at once — the child then fills its pipe and never exits.
+final class PipeReader: @unchecked Sendable {
+    private let group = DispatchGroup()
+    private var data = Data()
+
+    init(_ pipe: Pipe) {
+        DispatchQueue.global().async(group: group) {
+            self.data = pipe.fileHandleForReading.readDataToEndOfFile()
+        }
+    }
+
+    /// Everything written to the pipe, once the writer has closed it.
+    func text() async -> String {
+        await withCheckedContinuation { continuation in
+            group.notify(queue: .global()) {
+                continuation.resume(returning: String(decoding: self.data, as: UTF8.self))
             }
         }
     }

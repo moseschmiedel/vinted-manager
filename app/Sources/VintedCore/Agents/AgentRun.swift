@@ -29,9 +29,7 @@ public final class AgentRun: @unchecked Sendable {
             let stdout = Pipe(), stderr = Pipe()
             process.standardOutput = stdout
             process.standardError = stderr
-            let errorReader = Task.detached {
-                String(decoding: stderr.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-            }
+            let errorReader = PipeReader(stderr)
             let reader = Task {
                 var finished = false
                 do {
@@ -45,7 +43,7 @@ public final class AgentRun: @unchecked Sendable {
                     continuation.yield(.notice("Reading agent output failed: \(error.localizedDescription)"))
                 }
                 process.waitUntilExit()
-                let errorText = await errorReader.value.trimmingCharacters(in: .whitespacesAndNewlines)
+                let errorText = await errorReader.text().trimmingCharacters(in: .whitespacesAndNewlines)
                 if !finished || process.terminationStatus != 0 {
                     let summary = self.isCancelled ? "Cancelled" :
                         (errorText.isEmpty ? "Agent exited with status \(process.terminationStatus)" : String(errorText.suffix(2000)))
